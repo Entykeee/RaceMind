@@ -56,3 +56,97 @@ def simulate_pit_stop(driver_laps, pit_lap):
             2
         )
     }
+
+def predict_hard_lap_time(
+    tyre_life,
+    intercept,
+    slope
+):
+
+    return intercept + (
+        slope * tyre_life
+    )
+
+def predict_hard_stint_time(
+    laps,
+    intercept,
+    slope
+):
+
+    total_time = 0
+
+    for tyre_life in range(1, laps + 1):
+
+        lap_time = predict_hard_lap_time(
+            tyre_life,
+            intercept,
+            slope
+        )
+
+        total_time += lap_time
+
+    return total_time
+
+def predict_strategy_time(
+    medium_laps,
+    hard_laps,
+    medium_intercept,
+    medium_slope,
+    hard_intercept,
+    hard_slope
+):
+
+    medium_time = 0
+
+    for tyre_life in range(1, medium_laps + 1):
+
+        lap_time = (
+            medium_intercept
+            + medium_slope * tyre_life
+        )
+
+        medium_time += lap_time
+
+    hard_time = predict_hard_stint_time(
+        hard_laps,
+        hard_intercept,
+        hard_slope
+    )
+
+    return medium_time + hard_time
+
+def simulate_strategy_window(
+    start_lap,
+    end_lap,
+    medium_model,
+    hard_model
+):
+
+    results = []
+
+    for pit_lap in range(
+        start_lap,
+        end_lap + 1
+    ):
+
+        race_time = predict_strategy_time(
+            medium_laps=pit_lap,
+            hard_laps=57 - pit_lap,
+            medium_intercept=medium_model["Intercept"],
+            medium_slope=medium_model["Slope"],
+            hard_intercept=hard_model["Intercept"],
+            hard_slope=hard_model["Slope"]
+        )
+
+        results.append({
+            "PitLap": pit_lap,
+            "PredictedRaceTime": race_time
+        })
+
+    return results
+
+def find_optimal_pit_stop(simulation_df):
+
+    return simulation_df.loc[
+        simulation_df["PredictedRaceTime"].idxmin()
+    ]
