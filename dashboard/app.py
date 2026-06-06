@@ -1,8 +1,21 @@
 import sys
 from pathlib import Path
 
+import pandas as pd
+import streamlit as st
+import plotly.express as px
+
 sys.path.append(
     str(Path(__file__).resolve().parent.parent)
+)
+
+from src.data_loader import (
+    load_race_session,
+    get_driver_laps
+)
+
+from src.degradation import (
+    get_compound_degradation
 )
 
 from src.strategy import (
@@ -10,9 +23,9 @@ from src.strategy import (
     find_optimal_pit_stop
 )
 
-import pandas as pd
-
-import streamlit as st
+@st.cache_resource
+def get_session():
+    return load_race_session()
 
 st.set_page_config(
     page_title="RaceMind",
@@ -56,17 +69,24 @@ st.write(
 
 st.divider()
 
+session = get_session()
+
 st.subheader("Strategy Prediction")
 
-medium_model = {
-    "Intercept": 89.77,
-    "Slope": -0.005
-}
+driver_laps = get_driver_laps(
+    session,
+    selected_driver
+)
 
-hard_model = {
-    "Intercept": 87.93,
-    "Slope": 0.0086
-}
+medium_model = get_compound_degradation(
+    driver_laps,
+    "MEDIUM"
+)
+
+hard_model = get_compound_degradation(
+    driver_laps,
+    "HARD"
+)
 
 simulation_results = simulate_strategy_window(
     18,
@@ -100,8 +120,6 @@ with col2:
         "Recommended Pit Lap",
         str(int(best_strategy["PitLap"]))
     )
-
-import plotly.express as px
 
 fig = px.line(
     simulation_df,
