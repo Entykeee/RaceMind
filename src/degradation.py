@@ -1,111 +1,239 @@
+"""
+degradation.py
+──────────────
+Tyre degradation modelling using linear regression on
+cleaned, outlier-filtered lap time data.
+
+All public functions return plain dicts or DataFrames so
+callers never need to import numpy or sklearn.
+"""
+
+import numpy as np
 import pandas as pd
 
 
-def prepare_lap_times(driver_laps):
+# ── Internal helpers ──────────────────────────────────────────────────────────
+
+def _to_seconds(lap_series) -> pd.Series:
+    """Convert a timedelta Series to float seconds."""
+    return lap_series.dt.total_seconds()
+
+
+def _iqr_filter(series: pd.Series, k: float = 1.5) -> pd.Series:
     """
-    Convert lap times to seconds and keep only quick laps.
+    Return a boolean mask that is True for values inside the
+    [Q1 - k·IQR, Q3 + k·IQR] fence.
+
+    Removes safety-car laps, VSC laps, and slow-zone
+    outliers that would otherwise distort the slope fit.
+    """
+    q1 = series.quantile(0.25)
+    q3 = series.quantile(0.75)
+    iqr = q3 - q1
+    return series.between(q1 - k * iqr, q3 + k * iqr)
+
+
+# ── Public API ────────────────────────────────────────────────────────────────
+
+def prepare_lap_times(driver_laps) -> pd.DataFrame:
+    """
+    Convert lap times to seconds, keep only quick laps, and
+    strip any rows missing TyreLife or LapTimeSeconds.
+
+    Parameters
+    ----------
+    driver_laps : fastf1.core.Laps for a single driver.
+
+    Returns
+    -------
+    pd.DataFrame with a 'LapTimeSeconds' float column added.
     """
 
-    clean_laps = driver_laps.pick_quicklaps().copy()
-
-    clean_laps["LapTimeSeconds"] = (
-        clean_laps["LapTime"]
-        .dt.total_seconds()
-    )
-
-    return clean_laps
-
-import numpy as np
+    clean = driver_laps.pick_quicklaps().copy()
+    clean["LapTimeSeconds"] = _to_seconds(clean["LapTime"])
+    clean = clean.dropna(subset=["TyreLife", "LapTimeSeconds"])
+    return clean
 
 
-def get_degradation_score(driver_laps):
+def get_compound_degradation(
+    driver_laps,
+    compound: str
+) -> dict | None:
     """
-    Calculate tyre degradation rate
-    using a simple linear fit.
+    Fit a linear degradation model for one tyre compound.
 
-    Returns:
-        seconds lost per lap
+    Applies IQR outlier filtering before fitting so that
+    safety-car laps do not skew the slope.
+
+    Parameters
+    ----------
+    driver_laps : fastf1.core.Laps for a single driver.
+    compound    : Compound string, e.g. 'MEDIUM'.
+
+    Returns
+    -------
+    dict with keys Compound, Slope, Intercept, R2, LapCount
+    or None if there are fewer than 3 usable laps.
     """
 
-    clean_laps = prepare_lap_times(driver_laps)
+    clean = prepare_lap_times(driver_laps)
 
-    x = clean_laps["TyreLife"]
-    y = clean_laps["LapTimeSeconds"]
+    compound_laps = clean[clean["Compound"] == compound].copy()
+
+    if len(compound_laps) < 3:
+        return None
+
+    # Outlier removal
+    mask = _iqr_filter(compound_laps["LapTimeSeconds"])
+    compound_laps = compound_laps[mask]
+
+    if len(compound_laps) < 3:
+        return None
+
+    x = compound_laps["TyreLife"].values.astype(float)
+    y = compound_laps["LapTimeSeconds"].values.astype(float)
 
     slope, intercept = np.polyfit(x, y, 1)
 
-    return slope
+    # R² – gives callers a quality signal
+    y_hat = intercept + slope * x
+    ss_res = np.sum((y - y_hat) ** 2)
+    ss_tot = np.sum((y - y.mean()) ** 2)
+    r2 = float(1 - ss_res / ss_tot) if ss_tot > 0 else 0.0
 
-def get_stint_summary(driver_laps):
+    return {
+        "Compound":  compound,
+        "Slope":     float(slope),
+        "Intercept": float(intercept),
+        "R2":        round(r2, 4),
+        "LapCount":  int(len(compound_laps))
+    }
 
-    clean_laps = prepare_lap_times(driver_laps)
 
-    summary = []
+def get_degradation_score(driver_laps) -> float:
+    """
+    Return a single overall degradation rate (seconds/lap)
+    across all compounds combined.
 
-    for stint in clean_laps['Stint'].unique():
+    Uses get_compound_degradation internally to benefit from
+    outlier filtering.
 
-        stint_data = clean_laps[
-            clean_laps['Stint'] == stint
-        ]
+    Parameters
+    ----------
+    driver_laps : fastf1.core.Laps for a single driver.
 
-        summary.append({
-            'Stint': int(stint),
-            'Compound': stint_data['Compound'].iloc[0],
-            'Laps': len(stint_data),
-            'AveragePace': round(
-                stint_data['LapTimeSeconds'].mean(),
-                3
+    Returns
+    -------
+    float – seconds lost per lap (positive = getting slower).
+    """
+
+    clean = prepare_lap_times(driver_laps)
+    compounds = clean["Compound"].dropna().unique()
+
+    slopes = []
+    for compound in compounds:
+        model = get_compound_degradation(driver_laps, compound)
+        if model:
+            slopes.append(model["Slope"])
+
+    return float(np.mean(slopes)) if slopes else 0.0
+
+
+def get_stint_summary(driver_laps) -> pd.DataFrame:
+    """
+    Summarise each stint: compound used, lap count,
+    average pace, and degradation slope.
+
+    Parameters
+    ----------
+    driver_laps : fastf1.core.Laps for a single driver.
+
+    Returns
+    -------
+    pd.DataFrame with columns:
+        Stint, Compound, Laps, AveragePace, DegradationSlope
+    """
+
+    clean = prepare_lap_times(driver_laps)
+    rows = []
+
+    for stint_id in sorted(clean["Stint"].dropna().unique()):
+
+        stint_data = clean[clean["Stint"] == stint_id]
+
+        if stint_data.empty:
+            continue
+
+        compound  = stint_data["Compound"].iloc[0]
+        lap_times = stint_data["LapTimeSeconds"]
+
+        # Per-stint slope via polyfit (no cross-compound noise)
+        if len(stint_data) >= 2:
+            sl, _ = np.polyfit(
+                stint_data["TyreLife"].values.astype(float),
+                lap_times.values.astype(float),
+                1
             )
+        else:
+            sl = 0.0
+
+        rows.append({
+            "Stint":             int(stint_id),
+            "Compound":          compound,
+            "Laps":              len(stint_data),
+            "AveragePace":       round(lap_times.mean(), 3),
+            "DegradationSlope":  round(float(sl), 4)
         })
 
-    return pd.DataFrame(summary)
+    return pd.DataFrame(rows)
 
-def get_driver_strategy_summary(laps):
 
-    drivers = laps['Driver'].unique()
+def get_compound_pace(driver_laps) -> pd.DataFrame:
+    """
+    Return mean lap time per compound for a driver.
 
-    all_summaries = []
+    Parameters
+    ----------
+    driver_laps : fastf1.core.Laps for a single driver.
 
-    for driver in drivers:
+    Returns
+    -------
+    pd.DataFrame with columns Compound, LapTimeSeconds.
+    """
 
-        driver_laps = laps.pick_drivers(driver)
-
-        summary = get_stint_summary(driver_laps)
-
-        summary['Driver'] = driver
-
-        all_summaries.append(summary)
-
-    return pd.concat(all_summaries, ignore_index=True)
-
-def get_compound_pace(driver_laps):
-
-    clean_laps = prepare_lap_times(driver_laps)
-
-    summary = (
-        clean_laps
+    clean = prepare_lap_times(driver_laps)
+    return (
+        clean
         .groupby("Compound")["LapTimeSeconds"]
         .mean()
         .reset_index()
+        .rename(columns={"LapTimeSeconds": "MeanLapTime"})
     )
 
-    return summary
 
-def get_compound_degradation(driver_laps, compound):
+def get_driver_strategy_summary(session_laps) -> pd.DataFrame:
+    """
+    Build a per-driver, per-stint summary for all drivers
+    in a session.
 
-    clean_laps = prepare_lap_times(driver_laps)
+    Parameters
+    ----------
+    session_laps : session.laps (all drivers).
 
-    compound_laps = clean_laps[
-        clean_laps["Compound"] == compound
-    ]
+    Returns
+    -------
+    pd.DataFrame with a 'Driver' column prepended.
+    """
 
-    x = compound_laps["TyreLife"]
-    y = compound_laps["LapTimeSeconds"]
+    all_summaries = []
 
-    slope, intercept = np.polyfit(x, y, 1)
+    for driver in session_laps["Driver"].dropna().unique():
+        driver_laps = session_laps.pick_drivers(driver)
+        summary = get_stint_summary(driver_laps)
+        summary.insert(0, "Driver", driver)
+        all_summaries.append(summary)
 
-    return {
-        "Compound": compound,
-        "Slope": slope,
-        "Intercept": intercept
-    }
+    if not all_summaries:
+        return pd.DataFrame()
+
+    return pd.concat(all_summaries, ignore_index=True)
