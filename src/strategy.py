@@ -32,6 +32,7 @@ def estimate_race_time(driver_laps):
 
     return clean_laps["LapTimeSeconds"].sum()
 
+
 def simulate_pit_stop(driver_laps, pit_lap):
 
     actual_pit_lap = get_pit_lap(driver_laps)
@@ -57,7 +58,12 @@ def simulate_pit_stop(driver_laps, pit_lap):
         )
     }
 
-def predict_hard_lap_time(
+
+# ------------------------------
+# GENERIC PREDICTION FUNCTIONS
+# ------------------------------
+
+def predict_lap_time(
     tyre_life,
     intercept,
     slope
@@ -67,7 +73,8 @@ def predict_hard_lap_time(
         slope * tyre_life
     )
 
-def predict_hard_stint_time(
+
+def predict_stint_time(
     laps,
     intercept,
     slope
@@ -75,9 +82,12 @@ def predict_hard_stint_time(
 
     total_time = 0
 
-    for tyre_life in range(1, laps + 1):
+    for tyre_life in range(
+        1,
+        laps + 1
+    ):
 
-        lap_time = predict_hard_lap_time(
+        lap_time = predict_lap_time(
             tyre_life,
             intercept,
             slope
@@ -86,6 +96,11 @@ def predict_hard_stint_time(
         total_time += lap_time
 
     return total_time
+
+
+# ------------------------------
+# CURRENT 2-STINT ENGINE
+# ------------------------------
 
 def predict_strategy_time(
     medium_laps,
@@ -96,24 +111,20 @@ def predict_strategy_time(
     hard_slope
 ):
 
-    medium_time = 0
+    medium_time = predict_stint_time(
+        medium_laps,
+        medium_intercept,
+        medium_slope
+    )
 
-    for tyre_life in range(1, medium_laps + 1):
-
-        lap_time = (
-            medium_intercept
-            + medium_slope * tyre_life
-        )
-
-        medium_time += lap_time
-
-    hard_time = predict_hard_stint_time(
+    hard_time = predict_stint_time(
         hard_laps,
         hard_intercept,
         hard_slope
     )
 
     return medium_time + hard_time
+
 
 def simulate_strategy_window(
     start_lap,
@@ -144,6 +155,7 @@ def simulate_strategy_window(
         })
 
     return results
+
 
 def find_optimal_pit_stop(simulation_df):
 

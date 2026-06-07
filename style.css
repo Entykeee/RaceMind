@@ -1,0 +1,59 @@
+/* Background */
+.stApp {
+    background: linear-gradient(
+        180deg,
+        #050814 0%,
+        #090f1f 100%
+    );
+}
+
+/* Main container */
+.block-container {
+    padding-top: 2rem;
+    padding-bottom: 2rem;
+    max-width: 1400px;
+}
+
+/* Headers */
+h1 {
+    color: white !important;
+    font-size: 4rem !important;
+    font-weight: 800 !important;
+}
+
+h2, h3 {
+    color: white !important;
+}
+
+/* Cards */
+.metric-card {
+    background: #111827;
+    padding: 25px;
+    border-radius: 20px;
+    border: 1px solid #1f2937;
+}
+
+/* Selectbox */
+div[data-baseweb="select"] {
+    border-radius: 12px;
+}
+
+/* Slider */
+.stSlider {
+    padding-top: 15px;
+}
+
+[data-testid="stMetric"] {
+    background: #111827;
+    border: 1px solid #1f2937;
+    padding: 20px;
+    border-radius: 20px;
+}
+
+[data-testid="stMetric"]{
+    background: rgba(17,24,39,0.9);
+    border: 1px solid #1f2937;
+    border-radius: 20px;
+    padding: 20px;
+    backdrop-filter: blur(10px);
+}
