@@ -1,117 +1,267 @@
-```markdown
-# RaceMind
+# 🏎️ RaceMind
 
-### Formula 1 Strategy Intelligence Platform
+**Formula 1 Strategy Intelligence Platform**
 
-![Python](https://img.shields.io/badge/Python-3.11+-blue.svg)
-![Streamlit](https://img.shields.io/badge/Streamlit-1.58+-red.svg)
-![FastF1](https://img.shields.io/badge/FastF1-3.0+-green.svg)
+RaceMind is a Formula 1 analytics platform that models tyre degradation, simulates pit-stop strategies, evaluates undercut opportunities, and generates data-driven race recommendations using historical race telemetry from FastF1.
+
+The project combines sports analytics, predictive modeling, and interactive visualization to explore how tyre performance influences race strategy and pit-stop timing.
+
+---
 
 ## Overview
 
-RaceMind is an F1 strategy analytics tool that models tyre degradation and optimizes pit stop strategies using real race data. Built for sports analytics enthusiasts and data scientists, it demonstrates practical application of regression modeling, simulation, and interactive visualization in a motorsport context.
+Formula 1 strategy decisions are often determined by tyre degradation, pit-stop timing, and stint management.
 
-**This is a student portfolio project focused on tyre degradation and pit-stop optimization — not a full race simulator.**
+RaceMind provides a framework for:
+
+* Modeling tyre degradation from historical race data
+* Simulating pit-stop strategies
+* Identifying optimal pit windows
+* Comparing actual race strategies against model recommendations
+* Evaluating undercut opportunities
+* Ranking drivers using strategy simulations
+* Validating predictions against real race outcomes
+
+The goal is not to replicate the proprietary systems used by Formula 1 teams, but to demonstrate practical applications of predictive analytics and data-driven decision-making in motorsport.
+
+---
 
 ## Features
 
-| Feature | Description |
-|---------|-------------|
-| **Tyre Degradation Modeling** | Linear regression with fuel correction and IQR outlier filtering |
-| **1-Stop Simulation** | Predicts race time for any pit lap using arithmetic series O(1) computation |
-| **2-Stop Comparison** | Evaluates whether an additional stop improves race time |
-| **Fair Driver Ranking** | Compares all drivers against a baseline tyre model (fastest driver in session) |
-| **Undercut Analysis** | Assesses viability of undercutting the car ahead |
-| **Strategy Windows** | Identifies pit laps within 1 second of optimal |
-| **Confidence Bands** | 95% confidence intervals on degradation models |
-| **Interactive Dashboard** | Built with Streamlit and Plotly |
+### Tyre Degradation Modeling
+
+* Fuel-corrected lap time analysis
+* IQR-based outlier removal
+* Compound-specific degradation models
+* Linear regression–based pace prediction
+* Stint-level degradation summaries
+
+### Strategy Simulation
+
+* 1-stop strategy simulation engine
+* 2-stop strategy comparison
+* Optimal pit window identification
+* Predicted race time estimation
+* Strategy recommendation engine
+
+### Race Intelligence
+
+* Actual vs optimal strategy comparison
+* Undercut viability analysis
+* Driver ranking system
+* Strategy performance assessment
+
+### Validation
+
+* Prediction validation against completed races
+* Predicted winner vs actual winner comparison
+* Predicted pit lap vs actual pit lap comparison
+* Error tracking for model evaluation
+
+### Interactive Dashboard
+
+* Premium Formula 1 inspired interface
+* Interactive race and driver selection
+* Dynamic strategy visualizations
+* Degradation analysis charts
+* Pit-stop optimization dashboard
+* Driver comparison views
+
+---
 
 ## Tech Stack
 
-- **Python 3.11+** — Core language
-- **Streamlit** — Interactive dashboard framework
-- **FastF1** — F1 telemetry and session data
-- **Pandas** — Data manipulation
-- **Plotly** — Interactive visualizations
-- **NumPy / SciPy** — Statistical computing and confidence intervals
+### Analytics
 
-## Architecture
+* Python
+* Pandas
+* NumPy
+* SciPy
 
-```
+### Formula 1 Data
+
+* FastF1
+
+### Visualization
+
+* Plotly
+* Streamlit
+
+### Frontend Styling
+
+* Custom CSS
+* F1-inspired dashboard design
+
+---
+
+## Project Structure
+
+```text
 RaceMind/
-├── app.py                 # Streamlit UI layer
-├── style.css              # Custom dashboard styling
+│
+├── dashboard/
+│   └── app.py
+│
 ├── src/
-│   ├── data_loader.py     # FastF1 session & lap fetching
-│   ├── degradation.py     # Tyre degradation modeling
-│   ├── strategy.py        # Pit-stop simulation engine
-│   ├── prediction.py      # Strategy recommendations & undercut
-│   └── ranking.py         # Fair driver ranking
+│   ├── data_loader.py
+│   ├── degradation.py
+│   ├── strategy.py
+│   ├── prediction.py
+│   ├── ranking.py
+│   └── validation.py
+│
+├── style.css
+│
+└── README.md
 ```
 
-## How It Works
+---
 
-**1. Data Loading** — Race sessions are fetched via FastF1. Lap times are filtered to exclude safety car and outlier laps using IQR.
+## Core Analytics Workflow
 
-**2. Fuel Correction** — Fuel burn (~0.095s/lap) is added back to lap times before degradation fitting, isolating pure tyre wear.
+### 1. Data Collection
 
-**3. Degradation Model** — Linear regression on tyre life vs. fuel-corrected lap time: `Lap Time = Intercept + Slope × TyreLife`. R² indicates model fit quality (>0.7 = strong linear degradation).
+Race data is retrieved from FastF1.
 
-**4. Strategy Simulation** — Closed-form arithmetic series sums stint times without looping: `Stint Time = intercept × laps + slope × laps × (laps + 1) / 2`. Total race time = Stint1 + pit_delta + Stint2.
-
-**5. Driver Ranking** — All drivers are simulated using the fastest driver's tyre model as baseline. This avoids circular logic where each driver is compared against their own degradation rate.
-
-## Limitations (Deliberate)
-
-| Not Modeled | Reason |
-|-------------|--------|
-| Traffic / dirty air | Focus on pure tyre + strategy |
-| Safety car periods | Unpredictable, would mask degradation |
-| Temperature effects | Requires data not available via FastF1 |
-| Driver skill differences | Controlled via baseline driver comparison |
-
-## Installation
-
-```bash
-git clone https://github.com/yourusername/racemind.git
-cd racemind
-pip install -r requirements.txt
-streamlit run dashboard/app.py
+```text
+FastF1 Session
+      ↓
+Driver Laps
+      ↓
+Tyre Stints
 ```
 
-**Requirements:**
+### 2. Data Cleaning
+
+Race laps are filtered to remove:
+
+* Safety Car laps
+* Virtual Safety Car laps
+* Extreme outliers
+
+Fuel-load correction is then applied to reduce bias caused by fuel burn during the race.
+
+### 3. Degradation Modeling
+
+For each tyre compound:
+
+```text
+Lap Time
+     vs
+Tyre Life
 ```
-fastf1>=3.0.0
-streamlit>=1.58.0
-pandas>=2.0.0
-plotly>=5.0.0
-numpy>=1.24.0
-scipy>=1.10.0
+
+A degradation model is fitted to estimate:
+
+* Degradation rate (s/lap)
+* Baseline pace
+* Model quality (R²)
+
+### 4. Strategy Simulation
+
+For each pit-stop scenario:
+
+```text
+Stint 1
+   +
+Pit Stop Delta
+   +
+Stint 2
 ```
 
-## Usage
+The simulator evaluates every pit window and identifies the strategy with the lowest predicted race time.
 
-1. Select a Grand Prix from the sidebar
-2. Choose a driver to analyze
-3. Adjust the simulated pit lap slider
-4. View predictions, comparisons, and recommendations
+### 5. Recommendation Generation
 
-## Validation
+RaceMind generates:
 
-Model predictions validated against actual race results. Example — Bahrain 2025:
+* Optimal pit lap
+* Predicted race time
+* Strategy recommendations
+* Undercut assessments
 
-| Metric | Predicted | Actual |
-|--------|-----------|--------|
-| Winner | VER | VER ✓ |
-| Optimal Pit Lap | Lap 24 | Lap 26 |
+---
 
-*Model uncertainty: ±0.8s*
+## Example Use Cases
 
-## License
+### Strategy Planning
 
-MIT
+* Determine the best lap to pit
+* Compare early vs late pit windows
+* Evaluate 1-stop vs 2-stop approaches
+
+### Tyre Analysis
+
+* Compare degradation across compounds
+* Identify high-degradation stints
+* Analyze tyre performance trends
+
+### Driver Comparison
+
+* Compare predicted race outcomes
+* Evaluate strategy effectiveness
+* Rank drivers using simulated scenarios
+
+---
+
+## Limitations
+
+RaceMind is intentionally simplified compared to real Formula 1 strategy systems.
+
+The current model does not explicitly account for:
+
+* Safety Car probability
+* Traffic and dirty air effects
+* Weather changes
+* Track evolution
+* Competitor reaction modeling
+* Team-specific race simulations
+
+The platform is designed as a sports analytics and predictive modeling project rather than a full race engineering system.
+
+---
+
+## Future Improvements
+
+Potential future work includes:
+
+* Safety Car scenario simulation
+* Tyre cliff detection
+* Track evolution modeling
+* Confidence intervals for predictions
+* Historical strategy backtesting
+* Enhanced validation framework
+* Traffic-aware race simulations
+
+---
+
+## Key Learnings
+
+This project demonstrates:
+
+* Data cleaning and preprocessing
+* Predictive analytics
+* Regression modeling
+* Simulation systems
+* Sports analytics
+* Interactive dashboard development
+* Data storytelling and visualization
+
+---
+
+## Screenshots
+
+Add screenshots of:
+
+* Strategy Overview
+* Pit Stop Simulation
+* Tyre Degradation Analysis
+* Driver Comparison Dashboard
+
+---
 
 ## Author
 
-Portfolio project — Sports Analytics + Predictive Analytics
-```
+Ojas
+
+Built as a sports analytics and predictive modeling project inspired by Formula 1 race strategy engineering.
