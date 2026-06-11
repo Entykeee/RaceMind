@@ -19,6 +19,7 @@ in O(1) rather than looping lap-by-lap.
 from __future__ import annotations
 
 import pandas as pd
+import numpy as np
 
 from src.degradation import (
     get_stint_summary,
@@ -295,4 +296,134 @@ def compare_actual_vs_optimal(
         "OptimalPredictedTime":  round(optimal["PredictedRaceTime"], 3),
         "TimeDelta":             delta,
         "Verdict":               verdict
+    }
+
+# strategy.py - Add these functions
+
+def predict_2stop_strategy_time(
+    stint1_laps: int,   # laps on compound 1 (lap 1 to pit1)
+    stint2_laps: int,   # laps on compound 2 (pit1+1 to pit2)
+    stint3_laps: int,   # laps on compound 3 (pit2+1 to end)
+    model_1: dict,
+    model_2: dict,
+    model_3: dict,
+    pit_delta: float = PIT_STOP_DELTA
+) -> float:
+    """
+    Total predicted race time for a 2-stop strategy (3 stints).
+    """
+    t1 = predict_stint_time(stint1_laps, model_1["Intercept"], model_1["Slope"])
+    t2 = predict_stint_time(stint2_laps, model_2["Intercept"], model_2["Slope"])
+    t3 = predict_stint_time(stint3_laps, model_3["Intercept"], model_3["Slope"])
+    
+    return t1 + pit_delta + t2 + pit_delta + t3
+
+
+def simulate_2stop_window(
+    start_lap1: int,
+    end_lap1: int,
+    start_lap2: int,
+    end_lap2: int,
+    model_1: dict,
+    model_2: dict,
+    model_3: dict,
+    race_laps: int,
+    pit_delta: float = PIT_STOP_DELTA
+) -> list[dict]:
+    """
+    Simulate all possible 2-stop pit lap combinations.
+    
+    WARNING: This is O(n²) — use with reasonable windows (e.g., 15-40 laps).
+    For race_laps=60, that's ~600 combinations → fine.
+    """
+    results = []
+    
+    for pit1 in range(start_lap1, min(end_lap1, race_laps - 10) + 1):
+        for pit2 in range(max(pit1 + 5, start_lap2), min(end_lap2, race_laps - 5) + 1):
+            
+            stint1 = pit1
+            stint2 = pit2 - pit1
+            stint3 = race_laps - pit2
+            
+            if stint2 < 3 or stint3 < 3:  # Minimum 3 laps per stint
+                continue
+            
+            total_time = predict_2stop_strategy_time(
+                stint1, stint2, stint3,
+                model_1, model_2, model_3,
+                pit_delta
+            )
+            
+            results.append({
+                "PitLap1": pit1,
+                "PitLap2": pit2,
+                "Stint1Laps": stint1,
+                "Stint2Laps": stint2,
+                "Stint3Laps": stint3,
+                "PredictedRaceTime": round(total_time, 3)
+            })
+    
+    return results
+
+
+def find_optimal_2stop(simulation_results: list[dict]) -> dict:
+    """Return the best 2-stop strategy."""
+    if not simulation_results:
+        return {}
+    return min(simulation_results, key=lambda x: x["PredictedRaceTime"])
+
+def find_optimal_2stop(simulation_results: list[dict]) -> dict:
+    """Return the best 2-stop strategy."""
+    if not simulation_results:
+        return {}
+    return min(simulation_results, key=lambda x: x["PredictedRaceTime"])
+
+def compare_1stop_vs_2stop(
+    model_1: dict,
+    model_2: dict,
+    race_laps: int,
+    pit_window_min: int = 15,
+    pit_window_max: int = 40
+) -> dict:
+    """
+    Compare optimal 1-stop vs optimal 2-stop strategy.
+    Returns dict with both strategies and recommended approach.
+    """
+    from src.strategy import simulate_strategy_window, find_optimal_pit_stop
+    
+    # 1-stop simulation
+    one_stop_results = simulate_strategy_window(
+        pit_window_min, pit_window_max,
+        model_1, model_2,
+        race_laps
+    )
+    one_stop_best = find_optimal_pit_stop(pd.DataFrame(one_stop_results))
+    
+    # 2-stop simulation (reusing compounds: 1 → 2 → 1)
+    two_stop_results = simulate_2stop_window(
+        pit_window_min, pit_window_max - 10,
+        pit_window_min + 5, pit_window_max,
+        model_1, model_2, model_1,
+        race_laps
+    )
+    two_stop_best = find_optimal_2stop(two_stop_results)
+    
+    if not two_stop_best:
+        return {"Error": "Not enough laps for 2-stop simulation"}
+    
+    time_diff = one_stop_best["PredictedRaceTime"] - two_stop_best["PredictedRaceTime"]
+    
+    return {
+        "OneStop": {
+            "PitLap": int(one_stop_best["PitLap"]),
+            "PredictedTime": one_stop_best["PredictedRaceTime"]
+        },
+        "TwoStop": {
+            "PitLap1": two_stop_best["PitLap1"],
+            "PitLap2": two_stop_best["PitLap2"],
+            "PredictedTime": two_stop_best["PredictedRaceTime"]
+        },
+        "TimeDifference": round(abs(time_diff), 2),
+        "Recommended": "2-stop" if time_diff > 0 else "1-stop",
+        "GainFrom2Stop": round(time_diff, 2)
     }

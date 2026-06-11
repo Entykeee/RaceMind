@@ -11,7 +11,6 @@ callers never need to import numpy or sklearn.
 import numpy as np
 import pandas as pd
 
-
 # ── Internal helpers ──────────────────────────────────────────────────────────
 
 def _to_seconds(lap_series) -> pd.Series:
@@ -35,80 +34,68 @@ def _iqr_filter(series: pd.Series, k: float = 1.5) -> pd.Series:
 
 # ── Public API ────────────────────────────────────────────────────────────────
 
+FUEL_BURN_PER_LAP = 0.095  # seconds per lap (F1 2025 average)
+
 def prepare_lap_times(driver_laps) -> pd.DataFrame:
     """
-    Convert lap times to seconds, keep only quick laps, and
-    strip any rows missing TyreLife or LapTimeSeconds.
-
-    Parameters
-    ----------
-    driver_laps : fastf1.core.Laps for a single driver.
-
-    Returns
-    -------
-    pd.DataFrame with a 'LapTimeSeconds' float column added.
+    Convert lap times to seconds, remove fuel effect, filter quick laps.
     """
-
     clean = driver_laps.pick_quicklaps().copy()
     clean["LapTimeSeconds"] = _to_seconds(clean["LapTime"])
-    clean = clean.dropna(subset=["TyreLife", "LapTimeSeconds"])
+    
+    # Fuel correction: later laps are faster due to less fuel
+    # We ADD fuel burn * lap number because older laps had MORE fuel
+    # This gives us the "true" tyre degradation without fuel masking it
+    clean["LapTimeSeconds_FuelCorrected"] = (
+        clean["LapTimeSeconds"] + FUEL_BURN_PER_LAP * clean["LapNumber"]
+    )
+    
+    clean = clean.dropna(subset=["TyreLife", "LapTimeSeconds_FuelCorrected"])
     return clean
 
 
 def get_compound_degradation(
     driver_laps,
-    compound: str
+    compound: str,
+    use_fuel_correction: bool = True
 ) -> dict | None:
     """
-    Fit a linear degradation model for one tyre compound.
-
-    Applies IQR outlier filtering before fitting so that
-    safety-car laps do not skew the slope.
-
-    Parameters
-    ----------
-    driver_laps : fastf1.core.Laps for a single driver.
-    compound    : Compound string, e.g. 'MEDIUM'.
-
-    Returns
-    -------
-    dict with keys Compound, Slope, Intercept, R2, LapCount
-    or None if there are fewer than 3 usable laps.
+    Fit linear degradation model with optional fuel correction.
     """
-
     clean = prepare_lap_times(driver_laps)
-
+    
     compound_laps = clean[clean["Compound"] == compound].copy()
-
+    
     if len(compound_laps) < 3:
         return None
-
+    
     # Outlier removal
-    mask = _iqr_filter(compound_laps["LapTimeSeconds"])
+    time_col = "LapTimeSeconds_FuelCorrected" if use_fuel_correction else "LapTimeSeconds"
+    mask = _iqr_filter(compound_laps[time_col])
     compound_laps = compound_laps[mask]
-
+    
     if len(compound_laps) < 3:
         return None
-
+    
     x = compound_laps["TyreLife"].values.astype(float)
-    y = compound_laps["LapTimeSeconds"].values.astype(float)
-
+    y = compound_laps[time_col].values.astype(float)
+    
     slope, intercept = np.polyfit(x, y, 1)
-
-    # R² – gives callers a quality signal
+    
+    # R² calculation
     y_hat = intercept + slope * x
     ss_res = np.sum((y - y_hat) ** 2)
     ss_tot = np.sum((y - y.mean()) ** 2)
     r2 = float(1 - ss_res / ss_tot) if ss_tot > 0 else 0.0
-
+    
     return {
         "Compound":  compound,
         "Slope":     float(slope),
         "Intercept": float(intercept),
         "R2":        round(r2, 4),
-        "LapCount":  int(len(compound_laps))
+        "LapCount":  int(len(compound_laps)),
+        "FuelCorrected": use_fuel_correction
     }
-
 
 def get_degradation_score(driver_laps) -> float:
     """

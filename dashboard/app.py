@@ -36,14 +36,13 @@ from src.strategy import (
     simulate_strategy_window,
     find_optimal_pit_stop,
     compare_actual_vs_optimal,
-    PIT_STOP_DELTA
+    PIT_STOP_DELTA,
+    compare_1stop_vs_2stop
 )
 from src.prediction import (
     build_strategy_recommendation,
-    rank_drivers_by_strategy,
     assess_undercut
 )
-
 
 # ═══════════════════════════════════════════════════════════════════════════════
 # CONSTANTS
@@ -127,25 +126,6 @@ def _get_session(race: str):
 @st.cache_data(hash_funcs={fastf1.core.Session: id})
 def _get_driver_laps_cached(_session, driver: str):
     return get_driver_laps(_session, driver)
-
-
-@st.cache_data(hash_funcs={fastf1.core.Session: id})
-def _compute_rankings(
-    _session,
-    _drivers: tuple,
-    race_laps: int,
-    pit_window_min: int,
-    pit_window_max: int
-) -> pd.DataFrame:
-    return rank_drivers_by_strategy(
-        session=_session,
-        drivers=list(_drivers),
-        get_driver_laps_fn=get_driver_laps,
-        get_compound_degradation_fn=get_compound_degradation,
-        race_laps=race_laps,
-        pit_window_min=pit_window_min,
-        pit_window_max=pit_window_max
-    )
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -350,6 +330,21 @@ with right:
     st.metric("Model-Optimal Pit", best_pit_lap)
     st.metric("Best Predicted Time", f"{best_time:.2f}s")
 
+# ─── CONFIDENCE BAND (NEW) ────────────────────────────────────────────────
+# Calculate how flat the optimum is
+simulation_df["DeltaFromBest"] = simulation_df["PredictedRaceTime"] - best_time
+within_1s = len(simulation_df[simulation_df["DeltaFromBest"] <= 1.0])
+within_3s = len(simulation_df[simulation_df["DeltaFromBest"] <= 3.0])
+total_window = len(simulation_df)
+
+# Find all pit laps within 1 second of optimal
+optimal_window = simulation_df[simulation_df["DeltaFromBest"] <= 1.0]["PitLap"].tolist()
+window_range = f"{min(optimal_window)}–{max(optimal_window)}" if optimal_window else f"{best_pit_lap}"
+
+st.caption(
+    f"📊 **Strategy window:** {within_1s}/{total_window} pit laps within 1s of optimal "
+    f"(Laps {window_range}) | ±{simulation_df['PredictedRaceTime'].std():.2f}s model uncertainty"
+)
 
 # ═══════════════════════════════════════════════════════════════════════════════
 # SECTION 2 — STRATEGY SIMULATION CHART
@@ -412,6 +407,23 @@ fig.add_vline(
     annotation_font_color="#22C55E",
     annotation_font_size=12
 )
+# Add confidence band (±1 second window)
+optimal_min_time = best_time
+candidates = simulation_df[simulation_df["PredictedRaceTime"] <= optimal_min_time + 1.0]
+if not candidates.empty:
+    min_lap = candidates["PitLap"].min()
+    max_lap = candidates["PitLap"].max()
+    
+    fig.add_vrect(
+        x0=min_lap, x1=max_lap,
+        fillcolor="#22C55E",
+        opacity=0.08,
+        line_width=0,
+        annotation_text="±1s window",
+        annotation_position="top left",
+        annotation_font_size=10,
+        annotation_font_color="#22C55E"
+    )
 
 if pit_lap != best_pit_lap:
     fig.add_vline(
@@ -437,6 +449,76 @@ fig.update_layout(
 
 st.plotly_chart(fig, use_container_width=True)
 
+# In app.py - Add after the 1-stop strategy chart
+
+# ──────────────────────────────────────────────────────────────────────────────
+# 2-STOP STRATEGY COMPARISON (NEW FEATURE)
+# ──────────────────────────────────────────────────────────────────────────────
+
+st.markdown(f"""
+<div class="rm-section-header">
+  <span class="rm-section-eyebrow">2-STOP STRATEGY ANALYSIS</span>
+  <span class="rm-section-line"></span>
+</div>
+""", unsafe_allow_html=True)
+
+# Only show if we have enough race laps for 2 stops
+if race_laps >= 50:  # Most F1 races are 55-70 laps
+    
+    with st.spinner("Simulating 2-stop strategies..."):
+        stop_comparison = compare_1stop_vs_2stop(
+            model_1, model_2, race_laps,
+            pit_window_min=PIT_WINDOW_MIN,
+            pit_window_max=PIT_WINDOW_MAX
+        )
+    
+    if "Error" not in stop_comparison:
+        col1, col2, col3 = st.columns(3)
+        
+        with col1:
+            st.metric(
+                "Best 1-Stop",
+                f"Lap {stop_comparison['OneStop']['PitLap']}",
+                f"{stop_comparison['OneStop']['PredictedTime']:.1f}s"
+            )
+        
+        with col2:
+            st.metric(
+                "Best 2-Stop",
+                f"Lap {stop_comparison['TwoStop']['PitLap1']} → {stop_comparison['TwoStop']['PitLap2']}",
+                f"{stop_comparison['TwoStop']['PredictedTime']:.1f}s"
+            )
+        
+        with col3:
+            gain = stop_comparison['GainFrom2Stop']
+            st.metric(
+                "2-Stop Advantage",
+                f"{gain:+.2f}s" if gain != 0 else "Neutral",
+                delta_color="normal" if gain > 0 else "inverse"
+            )
+        
+        recommendation = stop_comparison['Recommended']
+        gain_abs = abs(stop_comparison['GainFrom2Stop'])
+        
+        if gain_abs > 3:
+            st.success(
+                f"**{recommendation} strategy recommended** — "
+                f"would save **{gain_abs:.1f}s** in race time."
+            )
+        elif gain_abs > 1:
+            st.info(
+                f"**{recommendation} has marginal advantage** "
+                f"({gain_abs:.1f}s). Track position may decide."
+            )
+        else:
+            st.warning(
+                "**Strategies are nearly equal** (<1s difference). "
+                "Traffic and tyre management will be decisive."
+            )
+    else:
+        st.info("2-stop analysis requires more race laps. Current race too short.")
+else:
+    st.caption(f"Race length ({race_laps} laps) too short for meaningful 2-stop analysis.")
 
 # ═══════════════════════════════════════════════════════════════════════════════
 # SECTION 3 — AI STRATEGY ENGINEER
@@ -672,12 +754,22 @@ st.markdown(f"""
 """, unsafe_allow_html=True)
 
 with st.spinner("Simulating all drivers…"):
-    comparison_df = _compute_rankings(
+    # Auto-detect baseline driver (fastest in session)
+    try:
+        results = session.results
+        fastest_driver = results.iloc[0]["Abbreviation"]
+    except:
+        fastest_driver = "VER"
+    
+    comparison_df = rank_drivers_fair(
         session,
-        tuple(drivers),
+        drivers,
+        get_driver_laps_fn=_get_driver_laps_cached,
+        get_compound_degradation_fn=get_compound_degradation,
         race_laps=race_laps,
         pit_window_min=PIT_WINDOW_MIN,
-        pit_window_max=PIT_WINDOW_MAX
+        pit_window_max=PIT_WINDOW_MAX,
+        baseline_driver=fastest_driver
     )
 
 if comparison_df.empty:
@@ -686,6 +778,9 @@ if comparison_df.empty:
         "Sprint weekends or incomplete sessions may cause this."
     )
     st.stop()
+
+# Show which baseline was used
+st.caption(f" Rankings use **{fastest_driver}** as baseline tyre model (fastest driver in session)")
 
 # ── Winner prediction card ────────────────────────────────────────────────────
 
@@ -725,7 +820,7 @@ with st.container(border=True):
         st.metric("Best Race Time", f"{winner['PredictedTime']:.2f}s")
 
     with wc3:
-        st.metric("Optimal Pit Lap", int(winner["BestPitLap"]))
+        st.metric("Optimal Pit Lap", int(winner["OptimalPitLap"]))
 
     with wc4:
         if gap is not None:
@@ -735,7 +830,7 @@ with st.container(border=True):
     st.caption(
         f"**{winner['Driver']}** runs "
         f"{winner['Compound1']} → {winner['Compound2']}, "
-        f"pitting on lap {int(winner['BestPitLap'])}. "
+        f"pitting on lap {int(winner['OptimalPitLap'])}. "
         f"Degradation: {winner['Compound1']} {winner['Deg1']:+.4f}s/lap, "
         f"{winner['Compound2']} {winner['Deg2']:+.4f}s/lap."
     )
@@ -757,17 +852,17 @@ for i, col in enumerate(podium_cols):
                 unsafe_allow_html=True
             )
             st.metric("Predicted Time", f"{row['PredictedTime']:.2f}s")
-            st.metric("Pit Lap", int(row["BestPitLap"]))
+            st.metric("Pit Lap", int(row["OptimalPitLap"]))
             st.caption(
-                f"Δ +{row['Delta']:.2f}s"
-                if row["Delta"] > 0 else "Leader"
+                f"Δ +{row['DeltaToLeader']:.2f}s"
+                if row["DeltaToLeader"] > 0 else "Leader"
             )
 
 # ── Strategy scatter ──────────────────────────────────────────────────────────
 
 fig3 = px.scatter(
     comparison_df,
-    x="BestPitLap",
+    x="OptimalPitLap",
     y="PredictedTime",
     color="Driver",
     color_discrete_map=DRIVER_COLORS,
@@ -775,9 +870,9 @@ fig3 = px.scatter(
     title=f"{selected_race} — Strategy Comparison",
     hover_data={
         "Driver":        True,
-        "BestPitLap":    True,
+        "OptimalPitLap":    True,
         "PredictedTime": ":.2f",
-        "Delta":         ":.2f",
+        "DeltaToLeader": ":.2f",
         "Compound1":     True,
         "Compound2":     True
     }
@@ -810,19 +905,7 @@ st.plotly_chart(fig3, use_container_width=True)
 
 # ── Stacked bar — stint breakdown ─────────────────────────────────────────────
 
-fig4 = go.Figure()
-
-fig4.add_trace(go.Bar(
-    name="Stint 1",
-    x=comparison_df["Driver"],
-    y=comparison_df["Stint1Time"],
-    marker_color=[
-        DRIVER_COLORS.get(d, "#3B82F6")
-        for d in comparison_df["Driver"]
-    ],
-    opacity=0.9,
-    hovertemplate="<b>%{x}</b><br>Stint 1: %{y:.2f}s<extra></extra>"
-))
+# Stacked bar chart removed - Stint1Time/Stint2Time not available in fair ranking model
 
 fig4.add_trace(go.Bar(
     name="Stint 2 + pit delta",
@@ -855,13 +938,13 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 display_df = comparison_df[[
-    "Driver", "BestPitLap", "PredictedTime",
-    "Delta", "Compound1", "Compound2", "Deg1", "Deg2"
+    "Driver", "OptimalPitLap", "PredictedTime",
+    "DeltaToLeader", "Compound1", "Compound2", "Deg1", "Deg2"
 ]].copy()
 
 display_df.columns = [
     "Driver", "Pit Lap", "Predicted Time (s)",
-    "Δ Gap (s)", "Compound 1", "Compound 2",
+    "Δ Gap (s)", "Compound 1", "Compound 2", 
     "Deg 1 (s/lap)", "Deg 2 (s/lap)"
 ]
 
