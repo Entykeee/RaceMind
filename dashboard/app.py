@@ -94,7 +94,6 @@ PLOT_LAYOUT = dict(
 
 st.set_page_config(
     page_title="RaceMind",
-    page_icon="🏎️",
     layout="wide",
     initial_sidebar_state="expanded"
 )
@@ -105,10 +104,14 @@ if css_path.exists():
         st.markdown(f"<style>{f.read()}</style>", unsafe_allow_html=True)
 
 st.markdown("""
-<h1 style="margin-bottom:0;"> RaceMind</h1>
-<p style="font-size:18px; color:#9CA3AF; margin-top:4px; margin-bottom:24px;">
-Formula 1 Strategy Intelligence Platform
-</p>
+<div class="rm-hero">
+  <div class="rm-hero-meta">
+    <span class="rm-round-badge">STRATEGY ENGINE</span>
+    <span class="rm-up-next-badge">&#9654; LIVE MODEL</span>
+  </div>
+  <h1 class="rm-title">RACE<span class="rm-title-accent">MIND</span></h1>
+  <p class="rm-subtitle">Formula 1 Strategy Intelligence Platform</p>
+</div>
 """, unsafe_allow_html=True)
 
 
@@ -150,7 +153,12 @@ def _compute_rankings(
 # ═══════════════════════════════════════════════════════════════════════════════
 
 with st.sidebar:
-    st.markdown("### ⚙️ Configuration")
+    st.markdown("""
+    <div class="rm-sidebar-title">
+      <span class="rm-sidebar-eyebrow">CONFIGURATION</span>
+      <span class="rm-sidebar-line"></span>
+    </div>
+    """, unsafe_allow_html=True)
 
     schedule = fastf1.get_event_schedule(2025)
     races    = schedule["EventName"].tolist()
@@ -189,10 +197,18 @@ with st.sidebar:
         help="Used for the undercut viability assessment."
     )
 
-    st.caption(
-        f"Race laps: **{race_laps}**  |  "
-        f"Pit delta: **{PIT_STOP_DELTA:.0f}s**"
-    )
+    st.markdown(f"""
+    <div class="rm-sidebar-stats">
+      <div class="rm-sidebar-stat">
+        <span class="rm-stat-label">RACE LAPS</span>
+        <span class="rm-stat-value">{race_laps}</span>
+      </div>
+      <div class="rm-sidebar-stat">
+        <span class="rm-stat-label">PIT DELTA</span>
+        <span class="rm-stat-value">{PIT_STOP_DELTA:.0f}s</span>
+      </div>
+    </div>
+    """, unsafe_allow_html=True)
 
 # Driver accent colour
 accent = DRIVER_COLORS.get(selected_driver, "#3B82F6")
@@ -270,45 +286,54 @@ time_delta = abs(predicted_time - best_time)
 # SECTION 1 — STRATEGY OVERVIEW
 # ═══════════════════════════════════════════════════════════════════════════════
 
-st.markdown("## Strategy Overview")
+st.markdown(f"""
+<div class="rm-section-header">
+  <span class="rm-section-eyebrow">STRATEGY OVERVIEW</span>
+  <span class="rm-section-line"></span>
+</div>
+""", unsafe_allow_html=True)
 
 left, mid, right = st.columns([2, 1, 1])
 
 with left:
     with st.container(border=True):
         st.markdown(
-            f"<h2 style='color:{accent}; margin:0;'>{selected_driver}</h2>",
+            f"""
+            <div class="rm-driver-meta">
+              <span class="rm-driver-badge" style="background:{accent};">{selected_driver}</span>
+              <span class="rm-grand-prix-tag">{selected_race.upper()}</span>
+            </div>
+            <h2 class="rm-driver-title" style="color:{accent};">{selected_driver}</h2>
+            <p class="rm-driver-sub">
+              &#127937; {selected_race} Grand Prix &middot; {race_laps} laps
+            </p>
+            """,
             unsafe_allow_html=True
         )
-        st.markdown(
-            f"<span style='color:#9CA3AF; font-size:16px;'>"
-            f"🏁 {selected_race} Grand Prix — {race_laps} laps"
-            f"</span>",
-            unsafe_allow_html=True
-        )
-        st.markdown("")
 
         col_a, col_b = st.columns(2)
         with col_a:
             c1_color = COMPOUND_COLORS.get(compound_1.upper(), "#888")
             st.markdown(
-                f"<span style='color:{c1_color}; font-weight:600;'>"
-                f"● {compound_1}</span>&nbsp;"
-                f"<span style='color:#6B7280; font-size:13px;'>"
-                f"Slope: {model_1['Slope']:+.3f}s/lap &nbsp;"
-                f"R²: {model_1['R2']:.3f} &nbsp;"
-                f"N={model_1['LapCount']}</span>",
+                f"""
+                <div class="rm-compound-stat">
+                  <span class="rm-compound-label" style="color:{c1_color};">&#9679; {compound_1}</span>
+                  <span class="rm-compound-value">{model_1['Slope']:+.3f}s/lap</span>
+                  <span class="rm-compound-sub">R&sup2; {model_1['R2']:.3f} &middot; N={model_1['LapCount']}</span>
+                </div>
+                """,
                 unsafe_allow_html=True
             )
         with col_b:
             c2_color = COMPOUND_COLORS.get(compound_2.upper(), "#888")
             st.markdown(
-                f"<span style='color:{c2_color}; font-weight:600;'>"
-                f"● {compound_2}</span>&nbsp;"
-                f"<span style='color:#6B7280; font-size:13px;'>"
-                f"Slope: {model_2['Slope']:+.3f}s/lap &nbsp;"
-                f"R²: {model_2['R2']:.3f} &nbsp;"
-                f"N={model_2['LapCount']}</span>",
+                f"""
+                <div class="rm-compound-stat">
+                  <span class="rm-compound-label" style="color:{c2_color};">&#9679; {compound_2}</span>
+                  <span class="rm-compound-value">{model_2['Slope']:+.3f}s/lap</span>
+                  <span class="rm-compound-sub">R&sup2; {model_2['R2']:.3f} &middot; N={model_2['LapCount']}</span>
+                </div>
+                """,
                 unsafe_allow_html=True
             )
 
@@ -330,7 +355,12 @@ with right:
 # SECTION 2 — STRATEGY SIMULATION CHART
 # ═══════════════════════════════════════════════════════════════════════════════
 
-st.markdown("## Pit Stop Strategy Simulation")
+st.markdown(f"""
+<div class="rm-section-header">
+  <span class="rm-section-eyebrow">PIT STOP STRATEGY SIMULATION</span>
+  <span class="rm-section-line"></span>
+</div>
+""", unsafe_allow_html=True)
 
 fig = go.Figure()
 
@@ -423,7 +453,15 @@ recommendation = build_strategy_recommendation(
 )
 
 with st.container(border=True):
-    st.markdown(f"### AI Strategy Engineer — {selected_driver}")
+    st.markdown(
+        f"""
+        <div class="rm-card-header">
+          <span class="rm-card-eyebrow">AI STRATEGY ENGINEER</span>
+          <span class="rm-card-tag">{selected_driver}</span>
+        </div>
+        """,
+        unsafe_allow_html=True
+    )
     st.write(recommendation)
 
     actual_vs_optimal = compare_actual_vs_optimal(
@@ -453,12 +491,16 @@ with st.container(border=True):
 # SECTION 4 — TYRE DEGRADATION ANALYSIS
 # ═══════════════════════════════════════════════════════════════════════════════
 
-st.markdown("## Tyre Degradation Analysis")
+st.markdown(f"""
+<div class="rm-section-header">
+  <span class="rm-section-eyebrow">TYRE DEGRADATION ANALYSIS</span>
+  <span class="rm-section-line"></span>
+</div>
+""", unsafe_allow_html=True)
 
 st.info(
     "Lap times are IQR-filtered before fitting to remove safety-car and VSC laps. "
     "Slopes represent seconds lost per lap of tyre age.",
-    icon="ℹ️"
 )
 
 deg_tab1, deg_tab2 = st.tabs(["Degradation Model", "Stint Summary"])
@@ -581,7 +623,12 @@ with deg_tab2:
 # SECTION 5 — UNDERCUT VIABILITY
 # ═══════════════════════════════════════════════════════════════════════════════
 
-st.markdown("## Undercut Viability")
+st.markdown(f"""
+<div class="rm-section-header">
+  <span class="rm-section-eyebrow">UNDERCUT VIABILITY</span>
+  <span class="rm-section-line"></span>
+</div>
+""", unsafe_allow_html=True)
 
 undercut = assess_undercut(
     gap_to_ahead=gap_to_ahead,
@@ -594,7 +641,7 @@ undercut = assess_undercut(
 uc_col1, uc_col2, uc_col3 = st.columns(3)
 
 with uc_col1:
-    status = "✅ Viable" if undercut["Viable"] else "❌ Marginal"
+    status = "VIABLE" if undercut["Viable"] else "MARGINAL"
     st.metric("Undercut Status", status)
 
 with uc_col2:
@@ -617,7 +664,12 @@ with st.container(border=True):
 # SECTION 6 — DRIVER COMPARISON & WINNER PREDICTION
 # ═══════════════════════════════════════════════════════════════════════════════
 
-st.markdown("## Driver Strategy Comparison")
+st.markdown(f"""
+<div class="rm-section-header">
+  <span class="rm-section-eyebrow">DRIVER STRATEGY COMPARISON</span>
+  <span class="rm-section-line"></span>
+</div>
+""", unsafe_allow_html=True)
 
 with st.spinner("Simulating all drivers…"):
     comparison_df = _compute_rankings(
@@ -645,18 +697,29 @@ gap    = (
 )
 
 with st.container(border=True):
-    st.markdown("### Winner Prediction")
+    st.markdown(
+        """
+        <div class="rm-card-header">
+          <span class="rm-card-eyebrow rm-eyebrow-gold"> WINNER PREDICTION</span>
+          <span class="rm-card-tag">MODEL OUTPUT</span>
+        </div>
+        """,
+        unsafe_allow_html=True
+    )
 
     wc1, wc2, wc3, wc4 = st.columns(4)
 
     with wc1:
         w_color = DRIVER_COLORS.get(winner["Driver"], "#3B82F6")
         st.markdown(
-            f"<span style='color:{w_color}; font-size:28px; "
-            f"font-weight:700;'>{winner['Driver']}</span>",
+            f"""
+            <div class="rm-winner-chip">
+              <span class="rm-winner-code" style="color:{w_color};">{winner['Driver']}</span>
+              <span class="rm-winner-label">PREDICTED WINNER</span>
+            </div>
+            """,
             unsafe_allow_html=True
         )
-        st.caption("Predicted winner")
 
     with wc2:
         st.metric("Best Race Time", f"{winner['PredictedTime']:.2f}s")
@@ -680,7 +743,7 @@ with st.container(border=True):
 # ── Podium strip ──────────────────────────────────────────────────────────────
 
 podium_cols = st.columns(min(3, len(comparison_df)))
-medals = ["🥇", "🥈", "🥉"]
+medals = ["P1", "P2", "P3"]
 
 for i, col in enumerate(podium_cols):
     row       = comparison_df.iloc[i]
@@ -787,7 +850,9 @@ st.plotly_chart(fig4, use_container_width=True)
 
 # ── Full table + export ───────────────────────────────────────────────────────
 
-st.markdown("### Full Driver Table")
+st.markdown("""
+<div class="rm-subsection-header">FULL DRIVER TABLE</div>
+""", unsafe_allow_html=True)
 
 display_df = comparison_df[[
     "Driver", "BestPitLap", "PredictedTime",
@@ -815,7 +880,7 @@ st.dataframe(
 
 csv = display_df.to_csv(index=False).encode("utf-8")
 st.download_button(
-    label="⬇Export comparison as CSV",
+    label="EXPORT DATA",
     data=csv,
     file_name=f"racemind_{selected_race.replace(' ', '_')}_strategy.csv",
     mime="text/csv"
@@ -826,7 +891,12 @@ st.download_button(
 # SECTION 7 — MODEL INSIGHTS
 # ═══════════════════════════════════════════════════════════════════════════════
 
-st.markdown("## Model Insights")
+st.markdown(f"""
+<div class="rm-section-header">
+  <span class="rm-section-eyebrow">MODEL INSIGHTS</span>
+  <span class="rm-section-line"></span>
+</div>
+""", unsafe_allow_html=True)
 
 mi1, mi2, mi3, mi4, mi5 = st.columns(5)
 

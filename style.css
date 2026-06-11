@@ -1,59 +1,906 @@
-/* Background */
-.stApp {
-    background: linear-gradient(
-        180deg,
-        #050814 0%,
-        #090f1f 100%
+/* RaceMind - Premium F1 Dashboard Stylesheet
+   Target: Streamlit 1.58+
+   Fonts: Rajdhani + Barlow Condensed + JetBrains Mono
+*/
+
+@import url('https://fonts.googleapis.com/css2?family=Rajdhani:wght@400;500;600;700&family=Barlow+Condensed:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap');
+
+/* --- CSS Variables --- */
+:root {
+  --bg-base:        #080C14;
+  --bg-surface:     #0D1525;
+  --bg-card:        #111927;
+  --bg-card-hover:  #162030;
+  --bg-elevated:    #1A2438;
+
+  --border:         rgba(255,255,255,0.07);
+  --border-bright:  rgba(255,255,255,0.14);
+
+  --text-primary:   #F0F2F5;
+  --text-secondary: #8A97A8;
+  --text-muted:     #4A5568;
+  --text-data:      #C8D6E5;
+
+  --red:            #E10600;
+  --red-dim:        rgba(225,6,0,0.15);
+  --red-glow:       rgba(225,6,0,0.35);
+  --green:          #22C55E;
+  --green-dim:      rgba(34,197,94,0.12);
+  --blue:           #3671C6;
+
+  --font-display:   'Rajdhani', sans-serif;
+  --font-data:      'Barlow Condensed', sans-serif;
+  --font-mono:      'JetBrains Mono', monospace;
+
+  --radius-sm:      4px;
+  --radius-md:      8px;
+  --radius-lg:      12px;
+
+  --shadow-card:    0 4px 24px rgba(0,0,0,0.5), 0 1px 0 rgba(255,255,255,0.04) inset;
+  --shadow-glow-r:  0 0 20px rgba(225,6,0,0.2), 0 0 60px rgba(225,6,0,0.06);
+}
+
+/* --- Global base --- */
+*, *::before, *::after { box-sizing: border-box; }
+
+html, body, [data-testid="stAppViewContainer"] {
+  background-color: var(--bg-base) !important;
+}
+
+/* Carbon weave texture */
+[data-testid="stAppViewContainer"]::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  background-image:
+    repeating-linear-gradient(
+      45deg,
+      rgba(255,255,255,0.015) 0px,
+      rgba(255,255,255,0.015) 1px,
+      transparent 1px,
+      transparent 8px
+    ),
+    repeating-linear-gradient(
+      -45deg,
+      rgba(255,255,255,0.015) 0px,
+      rgba(255,255,255,0.015) 1px,
+      transparent 1px,
+      transparent 8px
     );
+  pointer-events: none;
+  z-index: 0;
 }
 
-/* Main container */
-.block-container {
-    padding-top: 2rem;
-    padding-bottom: 2rem;
-    max-width: 1400px;
+[data-testid="stMain"],
+[data-testid="stMainBlockContainer"] {
+  background: transparent !important;
 }
 
-/* Headers */
+/* --- Red racing stripe at top of page --- */
+[data-testid="stAppViewContainer"]::after {
+  content: '';
+  position: fixed;
+  top: 0; left: 0; right: 0;
+  height: 3px;
+  background: linear-gradient(90deg,
+    var(--red) 0%,
+    #ff6b6b 30%,
+    var(--red) 60%,
+    transparent 100%
+  );
+  z-index: 9999;
+  animation: scanline 3s ease-in-out infinite alternate;
+}
+
+@keyframes scanline {
+  from { opacity: 1; }
+  to   { opacity: 0.6; }
+}
+
+/* --- Scrollbar --- */
+::-webkit-scrollbar              { width: 5px; height: 5px; }
+::-webkit-scrollbar-track        { background: var(--bg-base); }
+::-webkit-scrollbar-thumb        { background: var(--red); border-radius: 99px; }
+::-webkit-scrollbar-thumb:hover  { background: #ff2a24; }
+
+/* --- Sidebar --- */
+[data-testid="stSidebar"] {
+  background: var(--bg-surface) !important;
+  border-right: 1px solid var(--border) !important;
+  box-shadow: 4px 0 24px rgba(0,0,0,0.4);
+}
+
+[data-testid="stSidebar"]::before {
+  content: '';
+  display: block;
+  height: 3px;
+  background: linear-gradient(90deg, var(--red) 0%, transparent 100%);
+}
+
+/*[data-testid="stSidebar"] * {
+  font-family: var(--font-data) !important;
+}*/
+
+[data-testid="stSidebarContent"] {
+  padding: 16px 20px !important;
+}
+
+[data-testid="stSidebar"] h3 {
+  font-family: var(--font-display) !important;
+  font-weight: 700 !important;
+  font-size: 13px !important;
+  letter-spacing: 0.18em !important;
+  text-transform: uppercase !important;
+  color: var(--text-muted) !important;
+  margin-bottom: 12px !important;
+}
+
+[data-testid="stSidebar"] hr {
+  border-color: var(--border) !important;
+  margin: 16px 0 !important;
+}
+
+[data-testid="stSidebar"] [data-testid="stCaptionContainer"] p {
+  font-family: var(--font-mono) !important;
+  font-size: 11px !important;
+  color: var(--text-muted) !important;
+}
+
+/* --- Main container --- */
+.main .block-container {
+  padding: 32px 40px 60px !important;
+  max-width: 1400px !important;
+}
+
+/* --- Typography --- */
+body, p, li {
+  font-family: var(--font-data) !important;
+  color: var(--text-primary);
+}
+
 h1 {
-    color: white !important;
-    font-size: 4rem !important;
-    font-weight: 800 !important;
+  font-family: var(--font-display) !important;
+  font-weight: 700 !important;
+  font-size: clamp(28px, 4vw, 48px) !important;
+  letter-spacing: 0.06em !important;
+  text-transform: uppercase !important;
+  color: var(--text-primary) !important;
+  line-height: 1 !important;
+  display: inline-block;
 }
 
-h2, h3 {
-    color: white !important;
+h1::after {
+  content: '';
+  display: block;
+  height: 3px;
+  width: 100%;
+  background: linear-gradient(90deg, var(--red) 0%, transparent 80%);
+  margin-top: 6px;
 }
 
-/* Cards */
-.metric-card {
-    background: #111827;
-    padding: 25px;
-    border-radius: 20px;
-    border: 1px solid #1f2937;
+h2 {
+  font-family: var(--font-display) !important;
+  font-weight: 600 !important;
+  font-size: clamp(20px, 2.5vw, 28px) !important;
+  letter-spacing: 0.04em !important;
+  color: var(--text-primary) !important;
 }
 
-/* Selectbox */
-div[data-baseweb="select"] {
-    border-radius: 12px;
+h3 {
+  font-family: var(--font-display) !important;
+  font-weight: 600 !important;
+  font-size: 18px !important;
+  letter-spacing: 0.1em !important;
+  text-transform: uppercase !important;
+  color: var(--text-secondary) !important;
+  border-bottom: 1px solid var(--border) !important;
+  padding-bottom: 8px !important;
+  margin-top: 32px !important;
+  margin-bottom: 16px !important;
 }
 
-/* Slider */
-.stSlider {
-    padding-top: 15px;
+[data-testid="stHeadingWithActionElements"] h2,
+[data-testid="stHeadingWithActionElements"] h3 {
+  font-family: var(--font-display) !important;
+  font-weight: 600 !important;
+  letter-spacing: 0.08em !important;
+  text-transform: uppercase !important;
+  color: var(--text-secondary) !important;
+  font-size: 14px !important;
 }
 
+/* Section labels from st.markdown("## ...") */
+[data-testid="stMarkdownContainer"] h2 {
+  font-family: var(--font-display) !important;
+  font-size: 13px !important;
+  font-weight: 700 !important;
+  letter-spacing: 0.2em !important;
+  text-transform: uppercase !important;
+  color: var(--text-muted) !important;
+  border-left: 3px solid var(--red) !important;
+  padding-left: 10px !important;
+  margin-top: 36px !important;
+  margin-bottom: 20px !important;
+  border-bottom: none !important;
+}
+
+hr {
+  border: none !important;
+  border-top: 1px solid var(--border) !important;
+  margin: 24px 0 !important;
+}
+
+/* --- Metric cards --- */
 [data-testid="stMetric"] {
-    background: #111827;
-    border: 1px solid #1f2937;
-    padding: 20px;
-    border-radius: 20px;
+  background: var(--bg-card) !important;
+  border: 1px solid var(--border) !important;
+  border-radius: var(--radius-md) !important;
+  padding: 16px 20px !important;
+  position: relative;
+  overflow: hidden;
+  transition: border-color 0.2s, box-shadow 0.2s;
+  box-shadow: var(--shadow-card);
 }
 
-[data-testid="stMetric"]{
-    background: rgba(17,24,39,0.9);
-    border: 1px solid #1f2937;
-    border-radius: 20px;
-    padding: 20px;
-    backdrop-filter: blur(10px);
+[data-testid="stMetric"]:hover {
+  border-color: var(--border-bright) !important;
+  box-shadow: var(--shadow-card), var(--shadow-glow-r);
+}
+
+[data-testid="stMetric"]::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 2px;
+  background: var(--red);
+}
+
+[data-testid="stMetricLabel"] {
+  font-family: var(--font-display) !important;
+  font-size: 10px !important;
+  font-weight: 600 !important;
+  letter-spacing: 0.2em !important;
+  text-transform: uppercase !important;
+  color: var(--text-muted) !important;
+}
+
+[data-testid="stMetricValue"] {
+  font-family: var(--font-mono) !important;
+  font-size: 26px !important;
+  font-weight: 600 !important;
+  color: var(--text-primary) !important;
+  line-height: 1.2 !important;
+  letter-spacing: -0.02em !important;
+}
+
+[data-testid="stMetricDelta"] {
+  font-family: var(--font-mono) !important;
+  font-size: 11px !important;
+  font-weight: 500 !important;
+}
+
+/* --- Bordered containers --- */
+[data-testid="stVerticalBlockBorderWrapper"] {
+  background: var(--bg-card) !important;
+  border: 1px solid var(--border) !important;
+  border-radius: var(--radius-lg) !important;
+  padding: 20px 24px !important;
+  box-shadow: var(--shadow-card) !important;
+  transition: border-color 0.2s;
+}
+
+[data-testid="stVerticalBlockBorderWrapper"]:hover {
+  border-color: var(--border-bright) !important;
+}
+
+/* --- Selectbox --- */
+[data-testid="stSelectbox"] label {
+  font-family: var(--font-display) !important;
+  font-size: 10px !important;
+  font-weight: 700 !important;
+  letter-spacing: 0.18em !important;
+  text-transform: uppercase !important;
+  color: var(--text-muted) !important;
+}
+
+[data-testid="stSelectbox"] > div > div {
+  background: var(--bg-card) !important;
+  border: 1px solid var(--border-bright) !important;
+  border-radius: var(--radius-sm) !important;
+  color: var(--text-primary) !important;
+  font-family: var(--font-data) !important;
+  font-size: 15px !important;
+  font-weight: 500 !important;
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+
+[data-testid="stSelectbox"] > div > div:focus-within {
+  border-color: var(--red) !important;
+  box-shadow: 0 0 0 2px var(--red-dim) !important;
+}
+
+[data-testid="stSelectbox"] ul {
+  background: var(--bg-elevated) !important;
+  border: 1px solid var(--border-bright) !important;
+  border-radius: var(--radius-sm) !important;
+}
+
+[data-testid="stSelectbox"] li {
+  font-family: var(--font-data) !important;
+  font-size: 14px !important;
+  color: var(--text-primary) !important;
+}
+
+[data-testid="stSelectbox"] li:hover,
+[data-testid="stSelectbox"] li[aria-selected="true"] {
+  background: var(--red-dim) !important;
+  color: var(--text-primary) !important;
+}
+
+/* --- Slider --- */
+[data-testid="stSlider"] label {
+  font-family: var(--font-display) !important;
+  font-size: 10px !important;
+  font-weight: 700 !important;
+  letter-spacing: 0.18em !important;
+  text-transform: uppercase !important;
+  color: var(--text-muted) !important;
+}
+
+[data-testid="stSlider"] [data-testid="stTickBar"] {
+  font-family: var(--font-mono) !important;
+  font-size: 10px !important;
+  color: var(--text-muted) !important;
+}
+
+[data-testid="stSlider"] [role="slider"] {
+  box-shadow: 0 0 0 3px var(--bg-base), 0 0 10px var(--red-glow) !important;
+}
+
+/* --- Number input --- */
+[data-testid="stNumberInput"] label {
+  font-family: var(--font-display) !important;
+  font-size: 10px !important;
+  font-weight: 700 !important;
+  letter-spacing: 0.18em !important;
+  text-transform: uppercase !important;
+  color: var(--text-muted) !important;
+}
+
+[data-testid="stNumberInput"] input {
+  background: var(--bg-card) !important;
+  border: 1px solid var(--border-bright) !important;
+  border-radius: var(--radius-sm) !important;
+  color: var(--text-primary) !important;
+  font-family: var(--font-mono) !important;
+  font-size: 15px !important;
+}
+
+[data-testid="stNumberInput"] input:focus {
+  border-color: var(--red) !important;
+  box-shadow: 0 0 0 2px var(--red-dim) !important;
+}
+
+/* --- Tabs --- */
+[data-testid="stTabs"] [role="tablist"] {
+  border-bottom: 1px solid var(--border) !important;
+  gap: 0 !important;
+}
+
+[data-testid="stTabs"] [role="tab"] {
+  font-family: var(--font-display) !important;
+  font-size: 11px !important;
+  font-weight: 600 !important;
+  letter-spacing: 0.15em !important;
+  text-transform: uppercase !important;
+  color: var(--text-muted) !important;
+  padding: 10px 20px !important;
+  border-radius: 0 !important;
+  transition: color 0.15s, border-color 0.15s;
+  border-bottom: 2px solid transparent !important;
+  margin-bottom: -1px !important;
+}
+
+[data-testid="stTabs"] [role="tab"]:hover {
+  color: var(--text-secondary) !important;
+  background: rgba(225,6,0,0.04) !important;
+}
+
+[data-testid="stTabs"] [role="tab"][aria-selected="true"] {
+  color: var(--text-primary) !important;
+  border-bottom-color: var(--red) !important;
+  background: transparent !important;
+}
+
+/* --- Dataframe --- */
+[data-testid="stDataFrame"] {
+  border: 1px solid var(--border) !important;
+  border-radius: var(--radius-md) !important;
+  overflow: hidden;
+}
+
+/* --- Alerts --- */
+[data-testid="stAlert"] {
+  border-radius: var(--radius-md) !important;
+  border: 1px solid var(--border) !important;
+  font-family: var(--font-data) !important;
+  font-size: 14px !important;
+}
+
+.stAlert p, .stAlert span {
+  font-family: var(--font-data) !important;
+  font-size: 14px !important;
+  line-height: 1.6 !important;
+  color: var(--text-data) !important;
+}
+
+/* --- Text --- */
+[data-testid="stMarkdownContainer"] p {
+  font-family: var(--font-data) !important;
+  font-size: 15px !important;
+  line-height: 1.7 !important;
+  color: var(--text-data) !important;
+}
+
+[data-testid="stCaptionContainer"] p,
+small, .stCaption {
+  font-family: var(--font-data) !important;
+  font-size: 12px !important;
+  color: var(--text-muted) !important;
+  letter-spacing: 0.02em !important;
+}
+
+strong, b {
+  font-weight: 600 !important;
+  color: var(--text-primary) !important;
+}
+
+code, pre {
+  font-family: var(--font-mono) !important;
+  font-size: 12px !important;
+  background: var(--bg-elevated) !important;
+  color: var(--text-data) !important;
+  border-radius: var(--radius-sm) !important;
+  padding: 2px 6px !important;
+}
+
+/* --- Download button --- */
+[data-testid="stDownloadButton"] > button {
+  background: transparent !important;
+  border: 1px solid var(--border-bright) !important;
+  border-radius: var(--radius-sm) !important;
+  color: var(--text-secondary) !important;
+  font-family: var(--font-display) !important;
+  font-size: 11px !important;
+  font-weight: 600 !important;
+  letter-spacing: 0.15em !important;
+  text-transform: uppercase !important;
+  padding: 8px 20px !important;
+  transition: all 0.15s;
+}
+
+[data-testid="stDownloadButton"] > button:hover {
+  border-color: var(--red) !important;
+  color: var(--text-primary) !important;
+  background: var(--red-dim) !important;
+  box-shadow: var(--shadow-glow-r);
+}
+
+/* --- Generic button --- */
+[data-testid="stButton"] > button {
+  background: var(--red) !important;
+  border: none !important;
+  border-radius: var(--radius-sm) !important;
+  color: #fff !important;
+  font-family: var(--font-display) !important;
+  font-size: 11px !important;
+  font-weight: 700 !important;
+  letter-spacing: 0.18em !important;
+  text-transform: uppercase !important;
+  padding: 8px 24px !important;
+  transition: background 0.15s, box-shadow 0.15s;
+}
+
+[data-testid="stButton"] > button:hover {
+  background: #ff2a24 !important;
+  box-shadow: var(--shadow-glow-r);
+}
+
+/* --- Spinner --- */
+[data-testid="stSpinner"] p {
+  font-family: var(--font-display) !important;
+  font-size: 11px !important;
+  letter-spacing: 0.15em !important;
+  text-transform: uppercase !important;
+  color: var(--text-muted) !important;
+}
+
+/* --- Plotly chart wrapper --- */
+[data-testid="stPlotlyChart"] {
+  border: 1px solid var(--border) !important;
+  border-radius: var(--radius-lg) !important;
+  overflow: hidden;
+  background: var(--bg-card) !important;
+}
+
+/* --- Column gaps --- */
+[data-testid="stHorizontalBlock"] {
+  gap: 16px !important;
+}
+
+/* --- Hide Streamlit chrome --- */
+#MainMenu, footer { visibility: hidden !important; }
+
+/* header { visibility: hidden !important; } */
+/* [data-testid="stToolbar"] { display: none !important; } */
+
+/* --- Sidebar label overrides --- */
+[data-testid="stSidebar"] [data-testid="stSelectbox"] label,
+[data-testid="stSidebar"] [data-testid="stSlider"] label,
+[data-testid="stSidebar"] [data-testid="stNumberInput"] label {
+  font-size: 10px !important;
+  color: var(--text-muted) !important;
+}
+
+/* --- Podium borders --- */
+[data-testid="stHorizontalBlock"] > div:nth-child(1)
+  [data-testid="stVerticalBlockBorderWrapper"] {
+  border-left: 2px solid #FFD700 !important;
+}
+
+[data-testid="stHorizontalBlock"] > div:nth-child(2)
+  [data-testid="stVerticalBlockBorderWrapper"] {
+  border-left: 2px solid #C0C0C0 !important;
+}
+
+[data-testid="stHorizontalBlock"] > div:nth-child(3)
+  [data-testid="stVerticalBlockBorderWrapper"] {
+  border-left: 2px solid #CD7F32 !important;
+}
+
+/* --- Stagger page load animation --- */
+[data-testid="stVerticalBlock"] > * {
+  animation: fadeUp 0.35s ease both;
+}
+
+[data-testid="stVerticalBlock"] > *:nth-child(1)  { animation-delay: 0.00s; }
+[data-testid="stVerticalBlock"] > *:nth-child(2)  { animation-delay: 0.04s; }
+[data-testid="stVerticalBlock"] > *:nth-child(3)  { animation-delay: 0.08s; }
+[data-testid="stVerticalBlock"] > *:nth-child(4)  { animation-delay: 0.12s; }
+[data-testid="stVerticalBlock"] > *:nth-child(5)  { animation-delay: 0.16s; }
+[data-testid="stVerticalBlock"] > *:nth-child(6)  { animation-delay: 0.20s; }
+[data-testid="stVerticalBlock"] > *:nth-child(7)  { animation-delay: 0.24s; }
+[data-testid="stVerticalBlock"] > *:nth-child(8)  { animation-delay: 0.28s; }
+[data-testid="stVerticalBlock"] > *:nth-child(9)  { animation-delay: 0.32s; }
+[data-testid="stVerticalBlock"] > *:nth-child(10) { animation-delay: 0.36s; }
+
+@keyframes fadeUp {
+  from { opacity: 0; transform: translateY(10px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* --- App fade in --- */
+[data-testid="stAppViewContainer"] {
+  animation: appFade 0.5s ease both;
+}
+
+@keyframes appFade {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+/* =========================================================
+   PITWALL-STYLE ADDITIONS
+   ========================================================= */
+
+/* --- Hero header --- */
+.rm-hero {
+  position: relative;
+  padding: 28px 32px 24px;
+  margin-bottom: 8px;
+  border-bottom: 1px solid var(--border);
+  overflow: hidden;
+}
+
+.rm-hero::before {
+  content: '';
+  position: absolute;
+  top: -40%; right: -5%;
+  width: 380px; height: 380px;
+  background: radial-gradient(circle, rgba(225,6,0,0.10) 0%, transparent 65%);
+  pointer-events: none;
+}
+
+.rm-hero-meta {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 14px;
+}
+
+.rm-round-badge {
+  background: var(--red);
+  color: #fff;
+  font-family: var(--font-display) !important;
+  font-size: 11px !important;
+  font-weight: 700 !important;
+  letter-spacing: 0.2em !important;
+  text-transform: uppercase;
+  padding: 4px 10px;
+  border-radius: var(--radius-sm);
+}
+
+.rm-up-next-badge {
+  color: var(--red);
+  font-family: var(--font-display) !important;
+  font-size: 11px !important;
+  font-weight: 700 !important;
+  letter-spacing: 0.2em !important;
+  text-transform: uppercase;
+  border: 1px solid var(--red);
+  padding: 4px 10px;
+  border-radius: var(--radius-sm);
+}
+
+.rm-title {
+  font-family: var(--font-display) !important;
+  font-weight: 700 !important;
+  font-size: clamp(40px, 6vw, 72px) !important;
+  line-height: 0.95 !important;
+  letter-spacing: 0.04em !important;
+  color: #fff !important;
+  margin: 0 !important;
+  text-transform: uppercase;
+  position: relative;
+  z-index: 1;
+  border-bottom: none !important;
+}
+
+.rm-title-accent { color: var(--red) !important; }
+
+.rm-subtitle {
+  font-family: var(--font-data) !important;
+  font-size: 15px !important;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-secondary) !important;
+  margin: 6px 0 0 !important;
+  position: relative;
+  z-index: 1;
+}
+
+/* --- Sidebar title --- */
+.rm-sidebar-title {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 18px;
+}
+
+.rm-sidebar-eyebrow {
+  font-family: var(--font-display) !important;
+  font-size: 12px !important;
+  font-weight: 700 !important;
+  letter-spacing: 0.25em !important;
+  text-transform: uppercase;
+  color: var(--text-primary) !important;
+}
+
+.rm-sidebar-line {
+  display: block;
+  height: 2px;
+  width: 32px;
+  background: var(--red);
+}
+
+/* --- Sidebar bottom stats --- */
+.rm-sidebar-stats {
+  display: flex;
+  gap: 0;
+  margin-top: 8px;
+  border-top: 1px solid var(--border);
+  padding-top: 14px;
+}
+
+.rm-sidebar-stat {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  flex: 1;
+  padding-right: 12px;
+}
+
+.rm-sidebar-stat:not(:last-child) {
+  border-right: 1px solid var(--border);
+}
+
+.rm-stat-label {
+  font-family: var(--font-display) !important;
+  font-size: 9px !important;
+  font-weight: 700 !important;
+  letter-spacing: 0.2em !important;
+  color: var(--text-muted) !important;
+  text-transform: uppercase;
+}
+
+.rm-stat-value {
+  font-family: var(--font-mono) !important;
+  font-size: 18px !important;
+  font-weight: 600 !important;
+  color: var(--text-primary) !important;
+}
+
+/* --- Section headers (replaces ## markdown) --- */
+.rm-section-header {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-top: 40px;
+  margin-bottom: 18px;
+  padding-left: 0;
+}
+
+.rm-section-eyebrow {
+  font-family: var(--font-display) !important;
+  font-size: 13px !important;
+  font-weight: 700 !important;
+  letter-spacing: 0.25em !important;
+  text-transform: uppercase;
+  color: var(--text-primary) !important;
+  border-left: 3px solid var(--red);
+  padding-left: 10px;
+  white-space: nowrap;
+}
+
+.rm-section-line {
+  flex: 1;
+  height: 1px;
+  background: var(--border);
+}
+
+/* --- Sub-section headers (replaces ### markdown) --- */
+.rm-subsection-header {
+  font-family: var(--font-display) !important;
+  font-size: 11px !important;
+  font-weight: 700 !important;
+  letter-spacing: 0.22em !important;
+  text-transform: uppercase;
+  color: var(--text-muted) !important;
+  margin-top: 28px;
+  margin-bottom: 14px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--border);
+}
+
+/* --- Driver overview hero block --- */
+.rm-driver-meta {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+
+.rm-driver-badge {
+  font-family: var(--font-display) !important;
+  font-size: 11px !important;
+  font-weight: 700 !important;
+  letter-spacing: 0.18em !important;
+  color: #0B1220 !important;
+  padding: 3px 10px;
+  border-radius: var(--radius-sm);
+}
+
+.rm-grand-prix-tag {
+  font-family: var(--font-data) !important;
+  font-size: 11px !important;
+  letter-spacing: 0.2em;
+  color: var(--text-muted) !important;
+  text-transform: uppercase;
+}
+
+.rm-driver-title {
+  font-family: var(--font-display) !important;
+  font-weight: 700 !important;
+  font-size: clamp(36px, 5vw, 56px) !important;
+  line-height: 0.95 !important;
+  letter-spacing: 0.05em !important;
+  margin: 0 !important;
+  text-transform: uppercase;
+  border-bottom: none !important;
+}
+
+.rm-driver-sub {
+  font-family: var(--font-data) !important;
+  font-size: 14px !important;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-secondary) !important;
+  margin: 6px 0 16px !important;
+}
+
+/* --- Compound stat blocks (Pitwall stat-item style) --- */
+.rm-compound-stat {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  padding-right: 16px;
+}
+
+.rm-compound-label {
+  font-family: var(--font-display) !important;
+  font-size: 11px !important;
+  font-weight: 700 !important;
+  letter-spacing: 0.15em !important;
+  text-transform: uppercase;
+}
+
+.rm-compound-value {
+  font-family: var(--font-mono) !important;
+  font-size: 20px !important;
+  font-weight: 600 !important;
+  color: var(--text-primary) !important;
+  letter-spacing: 0.02em;
+}
+
+.rm-compound-sub {
+  font-family: var(--font-data) !important;
+  font-size: 11px !important;
+  color: var(--text-muted) !important;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+/* --- Card header (used inside bordered containers) --- */
+.rm-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 14px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid var(--border);
+}
+
+.rm-card-eyebrow {
+  font-family: var(--font-display) !important;
+  font-size: 12px !important;
+  font-weight: 700 !important;
+  letter-spacing: 0.22em !important;
+  text-transform: uppercase;
+  color: var(--text-primary) !important;
+}
+
+.rm-eyebrow-gold { color: #FFD700 !important; }
+
+.rm-card-tag {
+  font-family: var(--font-mono) !important;
+  font-size: 11px !important;
+  letter-spacing: 0.1em;
+  color: var(--text-muted) !important;
+  border: 1px solid var(--border-bright);
+  padding: 2px 10px;
+  border-radius: var(--radius-sm);
+  text-transform: uppercase;
+}
+
+/* --- Winner chip --- */
+.rm-winner-chip {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.rm-winner-code {
+  font-family: var(--font-display) !important;
+  font-size: 36px !important;
+  font-weight: 700 !important;
+  letter-spacing: 0.06em !important;
+  line-height: 1 !important;
+}
+
+.rm-winner-label {
+  font-family: var(--font-display) !important;
+  font-size: 9px !important;
+  font-weight: 700 !important;
+  letter-spacing: 0.25em !important;
+  color: var(--text-muted) !important;
+  text-transform: uppercase;
 }
