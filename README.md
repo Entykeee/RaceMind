@@ -1,4 +1,4 @@
-# 🏎️ RaceMind
+# RaceMind
 
 **Formula 1 Strategy Intelligence Platform**
 
