@@ -14,57 +14,11 @@ DataFrames so it remains fast and fully testable.
 
 from __future__ import annotations
 
-import pandas as pd
-
 from src.strategy import (
     simulate_strategy_window,
     find_optimal_pit_stop,
     PIT_STOP_DELTA
 )
-
-
-# ── Lap-time prediction ───────────────────────────────────────────────────────
-
-def predict_lap_time(
-    tyre_life: int,
-    intercept: float,
-    slope: float
-) -> float:
-    """
-    Predict a single lap time given tyre age and a linear model.
-
-    Parameters
-    ----------
-    tyre_life : Lap number on the current set of tyres (1-indexed).
-    intercept : Model intercept.
-    slope     : Degradation slope (s/lap).
-
-    Returns
-    -------
-    float – predicted lap time in seconds.
-    """
-
-    return intercept + slope * tyre_life
-
-
-def predict_lap_time_series(
-    laps: int,
-    intercept: float,
-    slope: float
-) -> list[float]:
-    """
-    Predict lap times for an entire stint of `laps` laps.
-
-    Returns
-    -------
-    list[float] – one predicted lap time per lap (index 0 = lap 1).
-    """
-
-    return [
-        predict_lap_time(tyre_life, intercept, slope)
-        for tyre_life in range(1, laps + 1)
-    ]
-
 
 # ── Strategy recommendation ───────────────────────────────────────────────────
 

@@ -8,6 +8,9 @@ touches the FastF1 API directly.
 
 import fastf1
 
+import os
+os.makedirs("./f1_cache", exist_ok=True)
+fastf1.Cache.enable_cache("./f1_cache")
 
 def load_race_session(
     year: int = 2025,

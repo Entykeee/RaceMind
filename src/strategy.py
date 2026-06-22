@@ -49,31 +49,6 @@ def _arithmetic_stint_time(laps: int, intercept: float, slope: float) -> float:
 
 # ── Strategy analysis helpers ─────────────────────────────────────────────────
 
-def get_actual_strategy(driver_laps) -> dict:
-    """
-    Extract the actual strategy used by a driver from lap data.
-
-    Returns
-    -------
-    dict with keys:
-        NumberOfStints, Compounds, LapsPerStint, PitLaps
-    """
-
-    summary = get_stint_summary(driver_laps)
-
-    pit_laps = []
-    cumulative = 0
-    for laps in summary["Laps"].tolist()[:-1]:   # all stints except last
-        cumulative += laps
-        pit_laps.append(cumulative)
-
-    return {
-        "NumberOfStints": len(summary),
-        "Compounds":      summary["Compound"].tolist(),
-        "LapsPerStint":   summary["Laps"].tolist(),
-        "PitLaps":        pit_laps
-    }
-
 
 def get_pit_lap(driver_laps) -> int:
     """
@@ -84,15 +59,6 @@ def get_pit_lap(driver_laps) -> int:
     summary = get_stint_summary(driver_laps)
     return int(summary.iloc[0]["Laps"])
 
-
-def estimate_race_time(driver_laps) -> float:
-    """
-    Sum of all quick-lap times in seconds – a simple actual
-    race-time estimate for comparison purposes.
-    """
-
-    clean = prepare_lap_times(driver_laps)
-    return float(clean["LapTimeSeconds"].sum())
 
 
 # ── Core simulation engine ────────────────────────────────────────────────────
@@ -365,18 +331,12 @@ def simulate_2stop_window(
     
     return results
 
-
 def find_optimal_2stop(simulation_results: list[dict]) -> dict:
     """Return the best 2-stop strategy."""
     if not simulation_results:
         return {}
     return min(simulation_results, key=lambda x: x["PredictedRaceTime"])
 
-def find_optimal_2stop(simulation_results: list[dict]) -> dict:
-    """Return the best 2-stop strategy."""
-    if not simulation_results:
-        return {}
-    return min(simulation_results, key=lambda x: x["PredictedRaceTime"])
 
 def compare_1stop_vs_2stop(
     model_1: dict,
@@ -389,7 +349,6 @@ def compare_1stop_vs_2stop(
     Compare optimal 1-stop vs optimal 2-stop strategy.
     Returns dict with both strategies and recommended approach.
     """
-    from src.strategy import simulate_strategy_window, find_optimal_pit_stop
     
     # 1-stop simulation
     one_stop_results = simulate_strategy_window(
@@ -403,7 +362,7 @@ def compare_1stop_vs_2stop(
     two_stop_results = simulate_2stop_window(
         pit_window_min, pit_window_max - 10,
         pit_window_min + 5, pit_window_max,
-        model_1, model_2, model_1,
+        model_1, model_2, model_2,  # compound 3 = model_2
         race_laps
     )
     two_stop_best = find_optimal_2stop(two_stop_results)
